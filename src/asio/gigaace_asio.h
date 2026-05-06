@@ -42,6 +42,7 @@ public:
 private:
     void audioThread();
     bool ensureSharedRing();
+    bool prepareReadPosition();
     void fillInputBuffers(long doubleBufferIndex);
     void clearBuffers(long doubleBufferIndex);
 
@@ -59,7 +60,11 @@ private:
     int m_outputChannels;
     uint64_t m_readIndex;
     uint64_t m_samplePosition;
+    bool m_streamPrimed;
     GigaACESharedRing m_ring;
+    std::vector<float> m_concealment_buf; // last good interleaved block for underrun concealment
+    std::vector<float> m_last_frame;
+    bool m_have_last_frame = false;
 };
 
 extern const CLSID CLSID_GigaAceAsioDriver;

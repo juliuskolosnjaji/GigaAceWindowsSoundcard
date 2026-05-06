@@ -12,7 +12,7 @@ public:
     std::vector<float> consume(const std::vector<int>& channel_map, int frame_count);
     void consumeStereo(int frame_count, int left_channel, int right_channel,
                        float* left_out, float* right_out);
-    std::vector<float> latestLevels(int count) const;
+    std::vector<float> latestLevels(int count, int start_channel = 0) const;
     int bufferedFrameCount() const;
 
 private:

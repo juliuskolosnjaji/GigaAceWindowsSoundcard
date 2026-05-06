@@ -164,14 +164,15 @@ uint32_t gigaace_shared_ring_read_interleaved(GigaACESharedRing* ring, uint64_t*
     uint32_t channels = ring->layout->channel_count;
     uint32_t capacity = ring->layout->capacity_frames;
     uint64_t write_index = ring->layout->write_index;
-    uint64_t read_index = *io_read_index;
+    uint64_t read_index  = *io_read_index;
 
+    // Overrun: writer has lapped us — jump forward, accept data loss.
     if (write_index > read_index + capacity) {
-        read_index = write_index - capacity;
+        read_index = write_index - capacity / 2; // land at half-full, not empty
         ring->layout->overrun_count++;
     }
 
-    uint32_t available = (write_index > read_index) ? (uint32_t)(write_index - read_index) : 0;
+    uint32_t available     = (write_index > read_index) ? (uint32_t)(write_index - read_index) : 0;
     uint32_t frames_to_copy = (available < frame_count) ? available : frame_count;
 
     for (uint32_t frame = 0; frame < frames_to_copy; ++frame) {
@@ -181,10 +182,10 @@ uint32_t gigaace_shared_ring_read_interleaved(GigaACESharedRing* ring, uint64_t*
                      channels * sizeof(float));
     }
 
-    if (frames_to_copy < frame_count) {
-        size_t remaining = (size_t)(frame_count - frames_to_copy) * channels;
-        std::memset(&output[(size_t)frames_to_copy * channels], 0, remaining * sizeof(float));
-    }
+    // Zero-fill the underrun region so the caller can detect and conceal it.
+    if (frames_to_copy < frame_count)
+        std::memset(&output[(size_t)frames_to_copy * channels], 0,
+                    (size_t)(frame_count - frames_to_copy) * channels * sizeof(float));
 
     *io_read_index = read_index + frames_to_copy;
     return frames_to_copy;

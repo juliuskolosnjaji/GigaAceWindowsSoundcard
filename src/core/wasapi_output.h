@@ -21,7 +21,7 @@ class WASAPIOutput {
 public:
     using SampleCallback = std::function<void(int, float*, float*)>;
 
-    WASAPIOutput(double sample_rate = 48000.0, std::wstring endpoint_id = {});
+    WASAPIOutput(double sample_rate = 96000.0, std::wstring endpoint_id = {});
     ~WASAPIOutput();
 
     static std::vector<WASAPIRenderDevice> enumerateRenderDevices();
@@ -29,6 +29,7 @@ public:
     bool start(SampleCallback callback);
     void stop();
     bool isRunning() const { return m_running.load(); }
+    double sampleRate() const { return m_sample_rate; }
 
 private:
     void renderLoop();

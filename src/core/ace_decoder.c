@@ -3,28 +3,6 @@
 
 static const uint8_t kBroadcastMAC[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-static uint32_t unswizzle24(uint32_t src)
-{
-    src = ((src & 0xff0000u) >> 16) |
-          ( src & 0x00ff00u)        |
-          ((src & 0x0000ffu) << 16);
-
-    src = ((src & 0xf0f0f0u) >> 4) |
-          ((src & 0x0f0f0fu) << 4);
-
-    return src & 0x00ffffffu;
-}
-
-static uint32_t swizzle24(uint32_t sample)
-{
-    uint32_t swapped = ((sample & 0xf0f0f0u) >> 4) |
-                       ((sample & 0x0f0f0fu) << 4);
-
-    return ((swapped & 0xff0000u) >> 16) |
-           ( swapped & 0x00ff00u)        |
-           ((swapped & 0x0000ffu) << 16);
-}
-
 static int32_t sign_extend24(uint32_t sample24)
 {
     sample24 &= 0x00ffffffu;
@@ -38,7 +16,7 @@ static int32_t decode_sample24(const uint8_t packed[3])
     uint32_t raw = ((uint32_t)packed[0] << 16) |
                    ((uint32_t)packed[1] << 8)  |
                    ((uint32_t)packed[2]);
-    return sign_extend24(unswizzle24(raw));
+    return sign_extend24(raw);
 }
 
 int gigaace_decode_frame(const uint8_t *frame, size_t frame_len, int max_channels,

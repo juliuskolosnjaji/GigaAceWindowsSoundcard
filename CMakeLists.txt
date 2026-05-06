@@ -21,6 +21,7 @@ add_executable(GigaAceVirtualSoundCard
     src/core/pcm_buffer.cpp
     src/core/demo_source.cpp
     src/core/pcap_source.cpp
+    src/core/avantis_handshake.cpp
     src/core/engine.cpp
     src/core/wasapi_output.cpp
 )
@@ -90,6 +91,8 @@ target_compile_definitions(GigaAceReplay PRIVATE
     NOMINMAX
     WIN32_LEAN_AND_MEAN
 )
+
+target_link_libraries(GigaAceReplay PRIVATE winmm)
 
 target_compile_definitions(GigaAceSetup PRIVATE
     UNICODE

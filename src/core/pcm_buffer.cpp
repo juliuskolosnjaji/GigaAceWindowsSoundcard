@@ -72,18 +72,28 @@ void PCMRingBuffer::consumeStereo(int frame_count, int left_ch, int right_ch,
     m_available -= consumed;
 }
 
-std::vector<float> PCMRingBuffer::latestLevels(int count) const {
+std::vector<float> PCMRingBuffer::latestLevels(int count, int start_channel) const {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    int n = std::min(count, m_channels);
+    int first = std::clamp(start_channel, 0, std::max(0, m_channels - 1));
+    int n = std::min(count, m_channels - first);
     std::vector<float> levels(n, 0.0f);
 
     if (m_available == 0)
         return levels;
 
-    int latest = (m_write_index - 1 + m_capacity) % m_capacity;
-    for (int i = 0; i < n; ++i)
-        levels[i] = std::abs(m_storage[i][latest]);
+    // Peak over ~50ms window (4800 samples at 96kHz)
+    int window = std::min(m_available, 4800);
+    int start = (m_write_index - window + m_capacity) % m_capacity;
+    for (int i = 0; i < n; ++i) {
+        int ch = first + i;
+        float peak = 0.0f;
+        for (int s = 0; s < window; ++s) {
+            float v = std::abs(m_storage[ch][(start + s) % m_capacity]);
+            if (v > peak) peak = v;
+        }
+        levels[i] = peak;
+    }
 
     return levels;
 }

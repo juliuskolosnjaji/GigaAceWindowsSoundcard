@@ -2,6 +2,7 @@
 #include "frame.h"
 
 #include <windows.h>
+#include <QDebug>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -91,6 +92,28 @@ static bool is_gigaace_candidate(const unsigned char* data, unsigned int len, ui
     return frame_type == ethertype;
 }
 
+std::vector<PcapInterface> pcap_enumerate_interfaces() {
+    PcapRuntime pcap;
+    if (!pcap.valid())
+        return {};
+
+    char errbuf[256] = {};
+    pcap_if_t* devices = nullptr;
+    if (pcap.findalldevs(&devices, errbuf) != 0 || !devices)
+        return {};
+
+    std::vector<PcapInterface> result;
+    for (pcap_if_t* dev = devices; dev; dev = dev->next) {
+        PcapInterface iface;
+        iface.name = dev->name ? dev->name : "";
+        iface.description = dev->description ? dev->description : iface.name;
+        result.push_back(std::move(iface));
+    }
+
+    pcap.freealldevs(devices);
+    return result;
+}
+
 PcapFrameSource::PcapFrameSource(std::string interface_name, uint16_t ethertype)
     : m_interface_name(std::move(interface_name)), m_ethertype(ethertype) {}
 
@@ -124,52 +147,74 @@ std::string PcapFrameSource::lastError() const {
 }
 
 void PcapFrameSource::run() {
+    qInfo() << "[Pcap] Thread started, loading wpcap.dll";
     PcapRuntime pcap;
     if (!pcap.valid()) {
         m_last_error = "Npcap/wpcap.dll not found. Install Npcap with WinPcap-compatible API.";
+        qCritical() << "[Pcap]" << m_last_error.c_str();
         m_running = false;
         return;
     }
+    qInfo() << "[Pcap] wpcap.dll loaded OK";
 
     char errbuf[256] = {};
     pcap_if_t* devices = nullptr;
     if (pcap.findalldevs(&devices, errbuf) != 0 || !devices) {
         m_last_error = errbuf[0] ? errbuf : "No packet capture devices found.";
+        qCritical() << "[Pcap] findalldevs failed:" << m_last_error.c_str();
         m_running = false;
         return;
     }
 
+    // Log all available interfaces
+    int iface_count = 0;
+    for (pcap_if_t* dev = devices; dev; dev = dev->next) {
+        qInfo() << "[Pcap] Interface" << iface_count++ << ":"
+                << (dev->name ? dev->name : "") << "-"
+                << (dev->description ? dev->description : "");
+    }
+
     std::string wanted = lowercase(m_interface_name);
     const char* selected = nullptr;
+    std::string selected_desc;
     for (pcap_if_t* dev = devices; dev; dev = dev->next) {
         std::string name = dev->name ? dev->name : "";
         std::string desc = dev->description ? dev->description : "";
         std::string haystack = lowercase(name + " " + desc);
         if (wanted.empty() || haystack.find(wanted) != std::string::npos) {
             selected = dev->name;
+            selected_desc = desc;
             break;
         }
     }
 
-    if (!selected && devices)
+    if (!selected && devices) {
         selected = devices->name;
+        selected_desc = devices->description ? devices->description : "";
+        qWarning() << "[Pcap] Wanted interface" << m_interface_name.c_str() << "not found, using first:" << selected;
+    }
 
     if (!selected) {
         pcap.freealldevs(devices);
         m_last_error = "No selectable packet capture interface found.";
+        qCritical() << "[Pcap]" << m_last_error.c_str();
         m_running = false;
         return;
     }
 
+    qInfo() << "[Pcap] Opening:" << selected << "(" << selected_desc.c_str() << ")";
     pcap_t* handle = pcap.open_live(selected, 2048, 1, 10, errbuf);
     pcap.freealldevs(devices);
 
     if (!handle) {
         m_last_error = errbuf[0] ? errbuf : "Failed to open packet capture interface.";
+        qCritical() << "[Pcap] open_live failed:" << m_last_error.c_str();
         m_running = false;
         return;
     }
+    qInfo() << "[Pcap] Capture open, listening for EtherType 0x04EE";
 
+    uint64_t pkt_count = 0;
     while (m_running) {
         pcap_pkthdr* header = nullptr;
         const unsigned char* payload = nullptr;
@@ -180,16 +225,21 @@ void PcapFrameSource::run() {
         if (rc < 0) {
             char* err = pcap.geterr(handle);
             m_last_error = err ? err : "Packet capture failed.";
+            qCritical() << "[Pcap] next_ex error:" << m_last_error.c_str();
             break;
         }
 
         if (header && payload && is_gigaace_candidate(payload, header->caplen, m_ethertype)) {
+            ++pkt_count;
+            if (pkt_count == 1)
+                qInfo() << "[Pcap] First GigaACE frame received, caplen=" << header->caplen;
             std::vector<uint8_t> frame(payload, payload + header->caplen);
             if (m_handler)
                 m_handler(frame);
         }
     }
 
+    qInfo() << "[Pcap] Capture stopped, total GigaACE frames:" << pkt_count;
     pcap.close(handle);
     m_running = false;
 }

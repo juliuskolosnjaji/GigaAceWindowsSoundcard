@@ -66,12 +66,11 @@ std::vector<uint8_t> GigaACEDemoFrameFactory::makeFrame(uint8_t counter, int cha
         double value = std::sin((phase * frequency * 2.0 * 3.14159265358979) + ch * 0.12) * amplitude;
 
         uint32_t pcm24 = (uint32_t)(value * 8388608.0) & 0x00ffffffu;
-        uint32_t packed = GigaACEDecoder::swizzle24(pcm24);
 
         size_t base = GIGAACE_AUDIO_BASE_OFFSET + ch * GIGAACE_BYTES_PER_SAMPLE;
-        bytes[base]     = (uint8_t)((packed >> 16) & 0xff);
-        bytes[base + 1] = (uint8_t)((packed >> 8) & 0xff);
-        bytes[base + 2] = (uint8_t)(packed & 0xff);
+        bytes[base]     = (uint8_t)((pcm24 >> 16) & 0xff);
+        bytes[base + 1] = (uint8_t)((pcm24 >> 8) & 0xff);
+        bytes[base + 2] = (uint8_t)(pcm24 & 0xff);
     }
 
     return bytes;

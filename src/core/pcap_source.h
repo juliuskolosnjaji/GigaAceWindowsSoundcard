@@ -7,6 +7,13 @@
 #include <string>
 #include <thread>
 
+struct PcapInterface {
+    std::string name;
+    std::string description;
+};
+
+std::vector<PcapInterface> pcap_enumerate_interfaces();
+
 class PcapFrameSource {
 public:
     using FrameHandler = DemoFrameSource::FrameHandler;
