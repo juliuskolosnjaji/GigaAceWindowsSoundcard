@@ -1,0 +1,39 @@
+# Build output
+build/
+driver-build/
+dist/
+*.obj
+*.pdb
+*.ilk
+*.lib
+*.exp
+*.dll
+*.exe
+*.sys
+*.cat
+*.inf
+
+# Local SDK/vendor payloads
+qt6/
+_vendor/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.user
+*.suo
+.vs/
+
+# Captures and generated audio
+*.pcap
+*.pcapng
+*.wav
+*.aiff
+*.flac
+
+# OS/editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+.vscode/

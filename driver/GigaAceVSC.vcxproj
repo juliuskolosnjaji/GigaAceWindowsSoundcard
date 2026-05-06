@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A3B1C2D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <TemplateGuid>{1bc93793-694f-48fe-9372-81e2b05556fd}</TemplateGuid>
+    <Keyword>WindowsKernelModeDriver10</Keyword>
+    <RootNamespace>GigaAceVSC</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
+    <DriverType>KMDF</DriverType>
+    <DriverTargetPlatform>Universal</DriverTargetPlatform>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>KMDF</DriverType>
+    <DriverTargetPlatform>Universal</DriverTargetPlatform>
+    <KMDF_VERSION_MAJOR>1</KMDF_VERSION_MAJOR>
+    <KMDF_VERSION_MINOR>33</KMDF_VERSION_MINOR>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)build\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)driver-build\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>UNICODE;_UNICODE;DBG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WppEnabled>true</WppEnabled>
+      <WppScanConfigurationData>trace.h</WppScanConfigurationData>
+      <WppSearchString>WPP_CONFIG(trace.h)</WppSearchString>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>portcls.lib;stdunk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <Inf>
+      <SpecifyDriverVerDirectiveVersion>true</SpecifyDriverVerDirectiveVersion>
+    </Inf>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="driver.cpp" />
+    <ClCompile Include="device.cpp" />
+    <ClCompile Include="miniportwavert.cpp" />
+    <ClCompile Include="miniportwavertstream.cpp" />
+    <ClCompile Include="sharedmemory.cpp" />
+    <ClCompile Include="trace.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="driver.h" />
+    <ClInclude Include="device.h" />
+    <ClInclude Include="miniport.h" />
+    <ClInclude Include="miniportwavert.h" />
+    <ClInclude Include="miniportwavertstream.h" />
+    <ClInclude Include="sharedmemory.h" />
+    <ClInclude Include="trace.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="GigaAceVSC.inf" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
