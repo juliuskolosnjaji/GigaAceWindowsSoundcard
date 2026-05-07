@@ -128,11 +128,12 @@ size_t AvantisHandshake::buildFrame(uint8_t* buf, size_t buf_size,
     buf[19] = counter & 0x1F;                       // sequence (5-bit)
     buf[20] = heartbeat ? kStreamHeart : kStreamAnnounce;
 
-    // Payload (bytes 24-51): GACE TLV announcement
+    // Payload (bytes 24-51): experimental identity announcement.
+    // Disabled by default; kept only as a lab switch.
     buf[24] = 0x47; buf[25] = 0x41;                 // 'G','A'
     buf[26] = 0x43; buf[27] = 0x45;                 // 'C','E'
     buf[28] = heartbeat ? 0x02u : 0x01u;            // opcode
-    buf[29] = 0x10;                                 // device_type: virtual PC rx
+    buf[29] = 0x48;                                 // tentative device_type: GX
 
     // channel_count (uint16_t big-endian)
     uint16_t ch = m_cfg.channel_count;
@@ -147,7 +148,7 @@ size_t AvantisHandshake::buildFrame(uint8_t* buf, size_t buf_size,
     buf[35] = (uint8_t)(sr & 0xFF);
 
     // device name (null-terminated, 16 bytes)
-    std::strncpy(reinterpret_cast<char*>(buf + 36), "GigaACE PC", 15);
+    std::strncpy(reinterpret_cast<char*>(buf + 36), "GX4816", 15);
     buf[51] = 0;
 
     return kFrameLen;
@@ -208,11 +209,12 @@ void AvantisHandshake::run() {
     auto    timeout  = std::chrono::milliseconds(m_cfg.timeout_ms);
 
     while (m_running.load()) {
-        // Send announcement or heartbeat
-        bool hb      = (m_state.load() == AvantisHandshakeState::Connected);
-        size_t flen  = buildFrame(frame_buf, sizeof(frame_buf), counter++, hb);
-        if (flen > 0)
-            pcap.sendpkt(handle, frame_buf, (int)flen);
+        if (m_cfg.send_announcement) {
+            bool hb      = (m_state.load() == AvantisHandshakeState::Connected);
+            size_t flen  = buildFrame(frame_buf, sizeof(frame_buf), counter++, hb);
+            if (flen > 0)
+                pcap.sendpkt(handle, frame_buf, (int)flen);
+        }
 
         // Update connection state based on audio frame activity
         {
