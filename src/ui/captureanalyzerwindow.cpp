@@ -34,6 +34,9 @@ CaptureAnalyzerWindow::CaptureAnalyzerWindow(QWidget* parent)
     m_stop_btn = new QPushButton("Stop");
     m_stop_btn->setEnabled(false);
     m_status_label = new QLabel("Ready");
+    m_hint_label = new QLabel("Select one of the known GX4816/GigaACE captures to get scenario-specific hints.");
+    m_hint_label->setWordWrap(true);
+    m_hint_label->setStyleSheet("color: #4b5563;");
 
     m_tone_spin = new QDoubleSpinBox();
     m_tone_spin->setRange(1.0, 40000.0);
@@ -77,6 +80,8 @@ CaptureAnalyzerWindow::CaptureAnalyzerWindow(QWidget* parent)
     file_layout->addWidget(new QLabel("File"), 0, 0);
     file_layout->addWidget(m_path_edit, 0, 1);
     file_layout->addWidget(m_browse_btn, 0, 2);
+    file_layout->addWidget(new QLabel("Expected"), 1, 0);
+    file_layout->addWidget(m_hint_label, 1, 1, 1, 2);
     file_layout->setColumnStretch(1, 1);
     root->addWidget(file_group);
 
@@ -107,6 +112,7 @@ CaptureAnalyzerWindow::CaptureAnalyzerWindow(QWidget* parent)
     m_process->setProcessChannelMode(QProcess::MergedChannels);
 
     connect(m_browse_btn, &QPushButton::clicked, this, &CaptureAnalyzerWindow::browseCapture);
+    connect(m_path_edit, &QLineEdit::textChanged, this, &CaptureAnalyzerWindow::updateCaptureHint);
     connect(m_run_btn, &QPushButton::clicked, this, &CaptureAnalyzerWindow::startAnalysis);
     connect(m_stop_btn, &QPushButton::clicked, this, &CaptureAnalyzerWindow::stopAnalysis);
     connect(m_process, &QProcess::readyReadStandardOutput, this, &CaptureAnalyzerWindow::readOutput);
@@ -131,6 +137,27 @@ void CaptureAnalyzerWindow::browseCapture() {
     );
     if (!file.isEmpty())
         m_path_edit->setText(QDir::toNativeSeparators(file));
+}
+
+QString CaptureAnalyzerWindow::inferScenario(const QString& path) const {
+    QString name = QFileInfo(path).fileName().toLower();
+    if (name.contains("connection without endpoint identifier")) {
+        return "GX4816 connection/startup capture. Expect GX4816 0x04EE frames from 00:04:c4:06:cf:e8. Useful for identity/startup headers; often no useful tone candidates.";
+    }
+    if (name.contains("gigaace connection to slink")) {
+        return "GigaACE card -> SLink receive-channel test. Expect 0x00E1 from 00:04:c4:09:ba:c4 and 440 Hz on receive channel/slot 1. Good reference for GigaACE-card emulation.";
+    }
+    if (name.contains("gx4816 connection to avantis") && name.contains("recieve channel 1")) {
+        return "GX4816 -> Avantis receive-channel test. Expect 0x04EE GX4816 frames and 440 Hz on Avantis receive channel 1. Good reference for stagebox-to-console TX.";
+    }
+    if (name.contains("gx4816 connection to avantis") && name.contains("send channel 1")) {
+        return "Avantis send-channel test through GX4816 link. Expect Avantis-origin 0x04EE frames with 440 Hz on send channel 1. Good reference for console-to-stagebox RX.";
+    }
+    return "Unknown capture scenario. The analyzer will still classify EtherTypes, MAC directions, headers and tone candidates.";
+}
+
+void CaptureAnalyzerWindow::updateCaptureHint() {
+    m_hint_label->setText(inferScenario(m_path_edit->text().trimmed()));
 }
 
 QString CaptureAnalyzerWindow::analyzerPath() const {

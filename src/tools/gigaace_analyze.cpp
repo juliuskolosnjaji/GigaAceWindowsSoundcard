@@ -118,6 +118,32 @@ static std::string narrow(const std::wstring& text) {
     return out;
 }
 
+static std::string lowercase_ascii(std::string text) {
+    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char ch) {
+        return (char)std::tolower(ch);
+    });
+    return text;
+}
+
+static std::string infer_capture_scenario(const std::wstring& path) {
+    std::string name = lowercase_ascii(narrow(path));
+    if (name.find("connection without endpoint identifier") != std::string::npos) {
+        return "GX4816 connection/startup capture. Expect GX4816 0x04EE frames from 00:04:c4:06:cf:e8; useful for identity/startup headers, not necessarily audio.";
+    }
+    if (name.find("gigaace connection to slink") != std::string::npos) {
+        return "GigaACE card -> SLink receive-channel test. Expect 0x00E1 from 00:04:c4:09:ba:c4 and 440 Hz on receive channel/slot 1.";
+    }
+    if (name.find("gx4816 connection to avantis") != std::string::npos &&
+        name.find("recieve channel 1") != std::string::npos) {
+        return "GX4816 -> Avantis receive-channel test. Expect 0x04EE GX4816 frames and 440 Hz on Avantis receive channel 1.";
+    }
+    if (name.find("gx4816 connection to avantis") != std::string::npos &&
+        name.find("send channel 1") != std::string::npos) {
+        return "Avantis send-channel test through GX4816 link. Expect Avantis-origin 0x04EE frames with 440 Hz on send channel 1.";
+    }
+    return "Unknown capture scenario. Use EtherTypes, Directions and Tone candidates below to classify it.";
+}
+
 static std::filesystem::path long_windows_path(const std::wstring& text) {
     if (text.rfind(LR"(\\?\)", 0) == 0)
         return std::filesystem::path(text);
@@ -164,6 +190,7 @@ public:
 
     void print() {
         std::cout << "Capture: " << narrow(opt.input_path) << "\n";
+        std::cout << "Scenario: " << infer_capture_scenario(opt.input_path) << "\n";
         std::cout << "Packets: " << packets_total << "\n";
         std::cout << "GigaACE-like packets: " << gigaace_total << "\n";
         if (first_ts && last_ts > first_ts) {

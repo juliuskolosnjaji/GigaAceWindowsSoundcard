@@ -25,9 +25,11 @@ private slots:
     void stopAnalysis();
     void readOutput();
     void processFinished(int exit_code);
+    void updateCaptureHint();
 
 private:
     QString analyzerPath() const;
+    QString inferScenario(const QString& path) const;
     void setRunning(bool running);
 
     QLineEdit* m_path_edit = nullptr;
@@ -41,6 +43,7 @@ private:
     QSpinBox* m_top_spin = nullptr;
     QCheckBox* m_byte_scan_check = nullptr;
     QLabel* m_status_label = nullptr;
+    QLabel* m_hint_label = nullptr;
     QPlainTextEdit* m_output = nullptr;
     QProcess* m_process = nullptr;
 };
