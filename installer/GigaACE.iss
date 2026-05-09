@@ -54,7 +54,7 @@ Source: "{#BuildDir}\Qt6Widgets.dll";    DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\Qt6Network.dll";    DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\Qt6Concurrent.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\Qt6Svg.dll";        DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BuildDir}\icuuc.dll";         DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BuildDir}\icuuc.dll";         DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#BuildDir}\d3dcompiler_47.dll";DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#BuildDir}\opengl32sw.dll";    DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 

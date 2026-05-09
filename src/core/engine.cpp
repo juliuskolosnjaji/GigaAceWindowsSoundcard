@@ -296,7 +296,8 @@ void GigaACEEngine::txLoop() {
 
     // GX4816/SLink sends roughly one stagebox TX frame per incoming console frame.
     // GigaACE card mode sends 0x00E1 at 96 k packets/s while the console side is
-    // roughly 48 k packets/s, so it needs two TX frames per RX frame.
+    // roughly 48 k packets/s. The real card starts this stream before a console
+    // stream is visible, so it must free-run instead of waiting for RX clock.
     static constexpr size_t kMaxBatch  = 192;   // max frames per sendQueue call
     static constexpr size_t kCatchupCap = 768;  // never send more than this per wakeup
     const bool gigaace_card_mode = m_config.tx_probe_packet_format == GIGAACE_TX_PACKET_GIGAACE_CARD;
@@ -305,13 +306,39 @@ void GigaACEEngine::txLoop() {
 
     uint64_t tx_sent = 0;  // local shadow of how many we have sent
 
+    if (gigaace_card_mode) {
+        while (m_tx_running.load()) {
+            std::vector<std::vector<uint8_t>> batch;
+            batch.reserve(kMaxBatch);
+            for (size_t i = 0; i < kMaxBatch && m_tx_running.load(); ++i)
+                batch.push_back(makeTxProbeFrame());
+
+            if (batch.empty())
+                break;
+
+            if (m_tx_sender->sendQueue(batch, rate)) {
+                tx_sent += batch.size();
+                m_tx_frames_sent += batch.size();
+            } else {
+                qWarning() << "[Engine] TX send queue failed:" << m_tx_sender->lastError().c_str();
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+
+            if (tx_sent > 0 && tx_sent % 96000 < kMaxBatch)
+                qInfo() << "[Engine] TX frames sent=" << (qulonglong)tx_sent;
+        }
+
+        qInfo() << "[Engine] TX stream thread stopped, sent=" << (qulonglong)tx_sent;
+        return;
+    }
+
     while (m_tx_running.load()) {
         // Wait until new RX frames arrive (or stop/timeout).
         uint64_t target;
         {
             std::unique_lock<std::mutex> lock(m_tx_clock_lock);
             m_tx_clock_cv.wait_for(lock, std::chrono::milliseconds(200), [&] {
-                return !m_tx_running.load() || m_tx_clock_frames > tx_sent;
+                return !m_tx_running.load() || (m_tx_clock_frames * tx_frames_per_rx) > tx_sent;
             });
             target = m_tx_clock_frames * tx_frames_per_rx;
         }
