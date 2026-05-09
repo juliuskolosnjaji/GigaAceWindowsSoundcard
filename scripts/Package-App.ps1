@@ -37,6 +37,7 @@ $files = @(
     "GigaAceVirtualSoundCard.exe",
     "GigaAceASIO.dll",
     "GigaAceReplay.exe",
+    "GigaAceAnalyze.exe",
     "GigaAceSetup.exe",
     "Qt6Core.dll",
     "Qt6Gui.dll",
@@ -71,6 +72,9 @@ GigaACE Virtual Sound Card
 
 For recorded captures:
 GigaAceReplay.exe --input capture.pcapng --loop --channels 64
+
+For protocol analysis:
+GigaAceAnalyze.exe --input capture.pcapng --tone 440 --slots 128
 "@ | Set-Content -Path (Join-Path $PackageDir "README.txt") -Encoding ASCII
 
 if (Test-Path $ZipPath) {

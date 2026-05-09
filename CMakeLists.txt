@@ -17,6 +17,7 @@ add_executable(GigaAceVirtualSoundCard
     src/ui/mainwindow.cpp
     src/ui/diagnosticswindow.cpp
     src/ui/txdebugwindow.cpp
+    src/ui/captureanalyzerwindow.cpp
     src/core/ace_decoder.c
     src/core/decoder.cpp
     src/core/shared_bridge.cpp
@@ -40,6 +41,10 @@ add_executable(GigaAceReplay
     src/tools/gigaace_replay.cpp
     src/core/ace_decoder.c
     src/core/shared_bridge.cpp
+)
+
+add_executable(GigaAceAnalyze
+    src/tools/gigaace_analyze.cpp
 )
 
 add_executable(GigaAceSetup WIN32
@@ -96,6 +101,13 @@ target_compile_definitions(GigaAceReplay PRIVATE
 )
 
 target_link_libraries(GigaAceReplay PRIVATE winmm)
+
+target_compile_definitions(GigaAceAnalyze PRIVATE
+    UNICODE
+    _UNICODE
+    NOMINMAX
+    WIN32_LEAN_AND_MEAN
+)
 
 target_compile_definitions(GigaAceSetup PRIVATE
     UNICODE

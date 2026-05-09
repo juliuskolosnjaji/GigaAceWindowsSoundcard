@@ -22,6 +22,7 @@
 #include "wasapi_output.h"
 #include "diagnosticswindow.h"
 #include "txdebugwindow.h"
+#include "captureanalyzerwindow.h"
 #include <memory>
 #include <vector>
 
@@ -66,6 +67,7 @@ private:
     QPushButton* m_monitor_btn;
     QPushButton* m_diagnostics_btn;
     QPushButton* m_tx_debug_btn;
+    QPushButton* m_capture_analyzer_btn;
     QComboBox* m_output_combo;
     QLabel* m_status_label;
     QLabel* m_mode_label;
@@ -93,6 +95,7 @@ private:
     double m_current_frame_rate = 0.0;
     std::unique_ptr<DiagnosticsWindow> m_diagnostics_window;
     std::unique_ptr<TxDebugWindow> m_tx_debug_window;
+    std::unique_ptr<CaptureAnalyzerWindow> m_capture_analyzer_window;
     TxDebugSettings m_tx_settings;
 
     std::vector<float> m_left_buf;

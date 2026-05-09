@@ -71,6 +71,7 @@ MainWindow::MainWindow(QWidget* parent)
     m_monitor_btn->setEnabled(false);
     m_diagnostics_btn = new QPushButton("Diagnostics");
     m_tx_debug_btn = new QPushButton("TX Debug");
+    m_capture_analyzer_btn = new QPushButton("Capture Analyzer");
     m_output_combo = new QComboBox();
     m_output_combo->setMinimumWidth(220);
     m_output_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -115,6 +116,13 @@ MainWindow::MainWindow(QWidget* parent)
         m_tx_debug_window->show();
         m_tx_debug_window->raise();
         m_tx_debug_window->activateWindow();
+    });
+    connect(m_capture_analyzer_btn, &QPushButton::clicked, [this]() {
+        if (!m_capture_analyzer_window)
+            m_capture_analyzer_window = std::make_unique<CaptureAnalyzerWindow>(this);
+        m_capture_analyzer_window->show();
+        m_capture_analyzer_window->raise();
+        m_capture_analyzer_window->activateWindow();
     });
     connect(m_tx_probe_check, &QCheckBox::toggled, [this](bool checked) {
         m_tx_tone_check->setEnabled(checked);
@@ -203,6 +211,7 @@ void MainWindow::setupUI() {
     controls->addWidget(m_stop_btn, 1, 4);
     controls->addWidget(m_diagnostics_btn, 1, 5);
     controls->addWidget(m_tx_debug_btn, 2, 3);
+    controls->addWidget(m_capture_analyzer_btn, 2, 4, 1, 2);
     controls->addWidget(m_tx_probe_check, 2, 1);
     controls->addWidget(m_tx_tone_check, 2, 2);
     controls->setColumnStretch(1, 2);

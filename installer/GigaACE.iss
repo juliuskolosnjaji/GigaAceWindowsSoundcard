@@ -47,6 +47,9 @@ Source: "{#BuildDir}\GigaAceASIO.dll"; DestDir: "{app}"; Flags: ignoreversion re
 ; CLI replay tool
 Source: "{#BuildDir}\GigaAceReplay.exe"; DestDir: "{app}"; Flags: ignoreversion
 
+; Capture analyzer tool used by the GUI analyzer window
+Source: "{#BuildDir}\GigaAceAnalyze.exe"; DestDir: "{app}"; Flags: ignoreversion
+
 ; Qt core DLLs
 Source: "{#BuildDir}\Qt6Core.dll";       DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\Qt6Gui.dll";        DestDir: "{app}"; Flags: ignoreversion
