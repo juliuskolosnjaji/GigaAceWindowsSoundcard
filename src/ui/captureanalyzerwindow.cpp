@@ -22,6 +22,7 @@
 
 CaptureAnalyzerWindow::CaptureAnalyzerWindow(QWidget* parent)
     : QWidget(parent) {
+    setWindowFlag(Qt::Window, true);
     setWindowTitle("GigaACE Capture Analyzer");
     resize(980, 720);
     setMinimumSize(760, 520);
