@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QTextStream>
 #include <QMessageBox>
+#include <QStyleFactory>
 #include <QtGlobal>
 #include <QSysInfo>
 #include <QMutex>
@@ -68,7 +69,10 @@ int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName("GigaACE Virtual Sound Card");
     app.setOrganizationName("GigaAce");
-    app.setStyle("Fusion");
+    if (QStyleFactory::keys().contains("windowsvista", Qt::CaseInsensitive))
+        app.setStyle("windowsvista");
+    else if (QStyleFactory::keys().contains("windows", Qt::CaseInsensitive))
+        app.setStyle("windows");
 
     setupLogging();
     qInfo() << "GigaACE Virtual Sound Card" << GIGAACE_VERSION_STR

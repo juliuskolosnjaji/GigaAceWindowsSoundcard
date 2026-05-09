@@ -2,6 +2,13 @@
 #include <functiondiscoverykeys_devpkey.h>
 #include <stdexcept>
 #include <propvarutil.h>
+#include <algorithm>
+
+static constexpr REFERENCE_TIME kLowLatencyBufferDurations[] = {
+    100000,  // 10 ms
+    200000,  // 20 ms
+    0        // device default fallback
+};
 
 WASAPIOutput::WASAPIOutput(double sample_rate, std::wstring endpoint_id)
     : m_sample_rate(sample_rate), m_endpoint_id(std::move(endpoint_id)) {}
@@ -46,14 +53,20 @@ bool WASAPIOutput::initialize() {
     if (m_output_channels == 0)
         m_output_channels = 2;
 
-    hr = m_audio_client->Initialize(
-        AUDCLNT_SHAREMODE_SHARED,
-        AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-        0,
-        0,
-        mix_format,
-        nullptr
-    );
+    for (REFERENCE_TIME duration : kLowLatencyBufferDurations) {
+        hr = m_audio_client->Initialize(
+            AUDCLNT_SHAREMODE_SHARED,
+            AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+            duration,
+            0,
+            mix_format,
+            nullptr
+        );
+        if (SUCCEEDED(hr)) {
+            m_requested_duration = duration;
+            break;
+        }
+    }
 
     CoTaskMemFree(mix_format);
     if (FAILED(hr)) return false;
@@ -125,6 +138,8 @@ void WASAPIOutput::stop() {
 }
 
 void WASAPIOutput::renderLoop() {
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
     BYTE* buffer = nullptr;
 
     while (m_running) {

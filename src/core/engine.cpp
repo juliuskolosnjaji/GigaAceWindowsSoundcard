@@ -12,6 +12,7 @@
 #include <windows.h>
 
 static const uint8_t kGx4816TxMac[6] = {0x00, 0x04, 0xc4, 0x06, 0xcf, 0xe8};
+static const uint8_t kGigaAceCardTxMac[6] = {0x00, 0x04, 0xc4, 0x09, 0xba, 0xc4};
 
 GigaACEEngine::GigaACEEngine(const GigaACEConfig& config)
     : m_config(config) {
@@ -163,9 +164,11 @@ static void encodeTxSample24(float sample, GigaACETxEncoding encoding, uint8_t p
 static size_t txSlotForChannel(int channel, GigaACETxLayout layout);
 
 void GigaACEEngine::handleFrame(const std::vector<uint8_t>& data) {
-    if (m_config.tx_probe_enabled && data.size() >= 12 &&
-        std::memcmp(data.data() + 6, kGx4816TxMac, sizeof(kGx4816TxMac)) == 0) {
-        return;
+    if (m_config.tx_probe_enabled && data.size() >= 12) {
+        if (std::memcmp(data.data() + 6, kGx4816TxMac, sizeof(kGx4816TxMac)) == 0 ||
+            std::memcmp(data.data() + 6, kGigaAceCardTxMac, sizeof(kGigaAceCardTxMac)) == 0) {
+            return;
+        }
     }
 
     uint64_t rx;
@@ -288,13 +291,17 @@ void GigaACEEngine::stopTxThread() {
 void GigaACEEngine::txLoop() {
   try {
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-    qInfo() << "[Engine] TX stream thread started (RX-clocked)";
+    qInfo() << "[Engine] TX stream thread started (RX-clocked)"
+            << "packet_format=" << m_config.tx_probe_packet_format;
 
-    // We send exactly one TX frame for every incoming RX frame,
-    // so our transmit rate tracks the console's 96 kHz clock precisely.
+    // GX4816/SLink sends roughly one stagebox TX frame per incoming console frame.
+    // GigaACE card mode sends 0x00E1 at 96 k packets/s while the console side is
+    // roughly 48 k packets/s, so it needs two TX frames per RX frame.
     static constexpr size_t kMaxBatch  = 192;   // max frames per sendQueue call
     static constexpr size_t kCatchupCap = 768;  // never send more than this per wakeup
-    const double rate = (m_config.sample_rate > 1.0) ? m_config.sample_rate : 96000.0;
+    const bool gigaace_card_mode = m_config.tx_probe_packet_format == GIGAACE_TX_PACKET_GIGAACE_CARD;
+    const uint64_t tx_frames_per_rx = gigaace_card_mode ? 2 : 1;
+    const double rate = gigaace_card_mode ? 96000.0 : 48000.0;
 
     uint64_t tx_sent = 0;  // local shadow of how many we have sent
 
@@ -306,7 +313,7 @@ void GigaACEEngine::txLoop() {
             m_tx_clock_cv.wait_for(lock, std::chrono::milliseconds(200), [&] {
                 return !m_tx_running.load() || m_tx_clock_frames > tx_sent;
             });
-            target = m_tx_clock_frames;
+            target = m_tx_clock_frames * tx_frames_per_rx;
         }
 
         if (!m_tx_running.load())
@@ -365,17 +372,29 @@ std::vector<uint8_t> GigaACEEngine::makeTxProbeFrame() {
 
     static const uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     std::memcpy(packet.data(), broadcast_mac, 6);
-    std::memcpy(packet.data() + 6, kGx4816TxMac, 6);
-    packet[12] = 0x04;
-    packet[13] = 0xee;
-    packet[14] = 0x00;
-    packet[15] = 0x0a;
-    packet[16] = 0x04;
-    packet[17] = 0xea;
-    packet[18] = 0x00;
+    const bool gigaace_card_mode = m_config.tx_probe_packet_format == GIGAACE_TX_PACKET_GIGAACE_CARD;
+    if (gigaace_card_mode) {
+        std::memcpy(packet.data() + 6, kGigaAceCardTxMac, 6);
+        packet[12] = 0x00;
+        packet[13] = 0xe1;
+        packet[14] = 0x00;
+        packet[15] = 0x00;
+        packet[16] = 0x00;
+        packet[17] = 0x00;
+        packet[18] = 0x00;
+    } else {
+        std::memcpy(packet.data() + 6, kGx4816TxMac, 6);
+        packet[12] = 0x04;
+        packet[13] = 0xee;
+        packet[14] = 0x00;
+        packet[15] = 0x0a;
+        packet[16] = 0x04;
+        packet[17] = 0xea;
+        packet[18] = 0x00;
+    }
     uint8_t counter = m_tx_counter++ & 0x1f;
     packet[GIGAACE_COUNTER_OFFSET] = counter;
-    packet[GIGAACE_STREAM_TYPE_OFFSET] = 0x02;
+    packet[GIGAACE_STREAM_TYPE_OFFSET] = gigaace_card_mode ? 0x01 : 0x02;
 
     size_t target_slot = txSlotForChannel(0, m_config.tx_probe_layout);
     if (m_config.tx_probe_source != GIGAACE_TX_SOURCE_SILENCE) {

@@ -15,12 +15,15 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent Network)
 add_executable(GigaAceVirtualSoundCard
     src/main.cpp
     src/ui/mainwindow.cpp
+    src/ui/diagnosticswindow.cpp
+    src/ui/txdebugwindow.cpp
     src/core/ace_decoder.c
     src/core/decoder.cpp
     src/core/shared_bridge.cpp
     src/core/pcm_buffer.cpp
     src/core/demo_source.cpp
     src/core/pcap_source.cpp
+    src/core/pcap_tx.cpp
     src/core/avantis_handshake.cpp
     src/core/engine.cpp
     src/core/wasapi_output.cpp

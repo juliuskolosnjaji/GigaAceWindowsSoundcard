@@ -30,6 +30,9 @@ public:
     void stop();
     bool isRunning() const { return m_running.load(); }
     double sampleRate() const { return m_sample_rate; }
+    double latencyMs() const {
+        return m_sample_rate > 1.0 ? (double)m_buffer_frame_count * 1000.0 / m_sample_rate : 0.0;
+    }
 
 private:
     void renderLoop();
@@ -44,6 +47,7 @@ private:
     IAudioRenderClient* m_render_client = nullptr;
     HANDLE m_event = nullptr;
     UINT32 m_buffer_frame_count = 0;
+    REFERENCE_TIME m_requested_duration = 0;
     UINT16 m_output_channels = 2;
     bool m_initialized = false;
 

@@ -1,6 +1,7 @@
 #define AppName      "GigaACE Virtual Sound Card"
 #define AppVersion   "0.1.0"
-#define AppRevision  GetDateTimeString('yyyymmdd', '', '')
+#define AppRevision  GetDateTimeString('yyyymmdd-hhnnss', '', '')
+#define AppFullVersion AppVersion + "-dev." + AppRevision
 #define AppPublisher "GigaAce"
 #define AppURL       ""
 #define BuildDir     "..\build\Release"
@@ -8,6 +9,7 @@
 [Setup]
 AppName={#AppName}
 AppVersion={#AppVersion}
+AppVerName={#AppName} {#AppFullVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppId={{A3F9C2E1-4B87-4D3A-8E92-1F6D5C4B7A20}
@@ -15,7 +17,7 @@ DefaultDirName={autopf}\GigaACE Virtual Sound Card
 DefaultGroupName=GigaACE Virtual Sound Card
 AllowNoIcons=yes
 OutputDir=.
-OutputBaseFilename=GigaACE_Setup_{#AppVersion}-{#AppRevision}
+OutputBaseFilename=GigaACE_Setup_{#AppFullVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -135,7 +137,7 @@ procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpWelcome then begin
     WizardForm.WelcomeLabel2.Caption :=
-      'This will install GigaACE Virtual Sound Card ' + '{#AppVersion}' + ' (build {#AppRevision}) on your computer.' + #13#10#13#10 +
+      'This will install GigaACE Virtual Sound Card ' + '{#AppFullVersion}' + ' on your computer.' + #13#10#13#10 +
       'Requirements:' + #13#10 +
       '  - Npcap (npcap.com) with WinPcap-compatible mode — for live capture' + #13#10 +
       '  - Visual C++ 2022 x64 Redistributable — for the application to run' + #13#10 +

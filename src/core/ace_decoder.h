@@ -23,6 +23,8 @@ float gigaace_pcm24_to_float(int32_t pcm24);
 
 int32_t gigaace_float_to_pcm24(float sample);
 
+void gigaace_encode_pcm24(int32_t pcm24, uint8_t packed[3]);
+
 #ifdef __cplusplus
 }
 #endif

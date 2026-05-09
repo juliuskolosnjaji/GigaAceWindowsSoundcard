@@ -20,16 +20,18 @@ enum class AvantisHandshakeState : int {
 
 struct AvantisHandshakeConfig {
     std::string interface_name;
-    // Locally-administered virtual MAC: 02:GACE:01
-    uint8_t  local_mac[6]         = {0x02, 0x47, 0x41, 0x43, 0x45, 0x01};
+    // Observed GX4816 MAC from the reference capture.
+    uint8_t  local_mac[6]         = {0x00, 0x04, 0xc4, 0x06, 0xcf, 0xe8};
     uint16_t channel_count        = 64;
     double   sample_rate          = 96000.0;
-    unsigned announce_interval_ms = 500;
+    unsigned announce_interval_ms = 1000;
     unsigned timeout_ms           = 2000;
+    bool     send_announcement    = false;
 };
 
-// Sends periodic GigaACE device-announcement frames (EtherType 0x04EE,
-// stream_type 0xF0/0xF1) to advertise this PC as an expansion device.
+// Tracks whether audio frames are arriving from a console. Optional announcement
+// frames are disabled by default because real GX4816 captures only show the
+// continuous 0x04EE/0x02 audio stream with GX MAC identity.
 // Tracks whether audio frames are arriving from a console and maintains
 // the Announcing→Connected→Lost state machine.
 class AvantisHandshake {

@@ -87,3 +87,11 @@ int32_t gigaace_float_to_pcm24(float sample)
     if (clipped < -1.0f) clipped = -1.0f;
     return (int32_t)(clipped * 8388608.0f);
 }
+
+void gigaace_encode_pcm24(int32_t pcm24, uint8_t packed[3])
+{
+    uint32_t raw = (uint32_t)pcm24 & 0x00ffffffu;
+    packed[0] = (uint8_t)(raw >> 16);
+    packed[1] = (uint8_t)(raw >> 8);
+    packed[2] = (uint8_t)raw;
+}
