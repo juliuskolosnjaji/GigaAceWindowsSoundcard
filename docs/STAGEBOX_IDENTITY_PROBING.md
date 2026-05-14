@@ -41,6 +41,16 @@ List the available probe variants:
 .\build\Release\GigaAceIdentify.exe --list
 ```
 
+List the available Windows/Npcap adapters:
+
+```powershell
+.\build\Release\GigaAceIdentify.exe --interfaces
+```
+
+Use one of the printed `\Device\NPF_{...}` names, or a unique substring from
+the adapter description. macOS-style names such as `en0` are not valid on
+Windows. If the requested adapter is not found, the tool refuses to transmit.
+
 Current variants:
 
 - `0 gx4816-slink-48k`  

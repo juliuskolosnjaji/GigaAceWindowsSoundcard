@@ -127,14 +127,16 @@ bool PcapPacketSender::open() {
             break;
         }
     }
-    if (!selected && devices)
+    if (!selected && devices && wanted.empty())
         selected = devices->name;
 
     if (!selected) {
         runtime->freealldevs(devices);
         runtime->unload();
         delete runtime;
-        m_last_error = "No Npcap interface available for TX";
+        m_last_error = wanted.empty()
+            ? "No Npcap interface available for TX"
+            : "Requested Npcap interface not found for TX: " + m_interface_name;
         return false;
     }
 

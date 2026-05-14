@@ -69,6 +69,7 @@ struct Options {
     int variant = -1;
     bool all = false;
     bool send = false;
+    bool list_interfaces = false;
 };
 
 static std::string lower(std::string text) {
@@ -93,6 +94,67 @@ static std::string mac_string(const uint8_t* mac) {
     std::snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X",
                   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     return buf;
+}
+
+static bool load_pcap_api(HMODULE& module,
+                          pcap_findalldevs_fn& findalldevs,
+                          pcap_freealldevs_fn& freealldevs,
+                          pcap_open_live_fn* open_live = nullptr,
+                          pcap_next_ex_fn* next_ex = nullptr,
+                          pcap_close_fn* close = nullptr) {
+    module = LoadLibraryA("wpcap.dll");
+    if (!module)
+        module = LoadLibraryA("Npcap\\wpcap.dll");
+    if (!module)
+        return false;
+
+    findalldevs = (pcap_findalldevs_fn)GetProcAddress(module, "pcap_findalldevs");
+    freealldevs = (pcap_freealldevs_fn)GetProcAddress(module, "pcap_freealldevs");
+    if (open_live)
+        *open_live = (pcap_open_live_fn)GetProcAddress(module, "pcap_open_live");
+    if (next_ex)
+        *next_ex = (pcap_next_ex_fn)GetProcAddress(module, "pcap_next_ex");
+    if (close)
+        *close = (pcap_close_fn)GetProcAddress(module, "pcap_close");
+
+    bool ok = findalldevs && freealldevs;
+    if (open_live) ok = ok && *open_live;
+    if (next_ex) ok = ok && *next_ex;
+    if (close) ok = ok && *close;
+    if (!ok) {
+        FreeLibrary(module);
+        module = nullptr;
+    }
+    return ok;
+}
+
+static bool list_interfaces() {
+    HMODULE module = nullptr;
+    pcap_findalldevs_fn findalldevs = nullptr;
+    pcap_freealldevs_fn freealldevs = nullptr;
+    if (!load_pcap_api(module, findalldevs, freealldevs)) {
+        std::cerr << "Npcap/wpcap.dll not found or missing pcap_findalldevs.\n";
+        return false;
+    }
+
+    char errbuf[256] = {};
+    pcap_if* devices = nullptr;
+    if (findalldevs(&devices, errbuf) != 0 || !devices) {
+        std::cerr << (errbuf[0] ? errbuf : "No Npcap interfaces found.") << "\n";
+        FreeLibrary(module);
+        return false;
+    }
+
+    int index = 0;
+    for (pcap_if* dev = devices; dev; dev = dev->next, ++index) {
+        std::cout << "[" << index << "] "
+                  << (dev->description ? dev->description : "(no description)") << "\n"
+                  << "    " << (dev->name ? dev->name : "") << "\n";
+    }
+
+    freealldevs(devices);
+    FreeLibrary(module);
+    return true;
 }
 
 static bool is_console_response(const uint8_t* frame, size_t len) {
@@ -161,23 +223,14 @@ private:
     }
 
     void run() {
-        HMODULE module = LoadLibraryA("wpcap.dll");
-        if (!module)
-            module = LoadLibraryA("Npcap\\wpcap.dll");
-        if (!module) {
+        HMODULE module = nullptr;
+        pcap_findalldevs_fn findalldevs = nullptr;
+        pcap_freealldevs_fn freealldevs = nullptr;
+        pcap_open_live_fn open_live = nullptr;
+        pcap_next_ex_fn next_ex = nullptr;
+        pcap_close_fn close = nullptr;
+        if (!load_pcap_api(module, findalldevs, freealldevs, &open_live, &next_ex, &close)) {
             setError("Npcap/wpcap.dll not found");
-            m_running = false;
-            return;
-        }
-
-        auto findalldevs = (pcap_findalldevs_fn)GetProcAddress(module, "pcap_findalldevs");
-        auto freealldevs = (pcap_freealldevs_fn)GetProcAddress(module, "pcap_freealldevs");
-        auto open_live = (pcap_open_live_fn)GetProcAddress(module, "pcap_open_live");
-        auto next_ex = (pcap_next_ex_fn)GetProcAddress(module, "pcap_next_ex");
-        auto close = (pcap_close_fn)GetProcAddress(module, "pcap_close");
-        if (!findalldevs || !freealldevs || !open_live || !next_ex || !close) {
-            FreeLibrary(module);
-            setError("Npcap API missing pcap_next_ex");
             m_running = false;
             return;
         }
@@ -201,14 +254,15 @@ private:
                 break;
             }
         }
-        if (!selected && devices)
+        if (!selected && devices && wanted.empty())
             selected = devices->name;
 
         pcap_t* handle = selected ? open_live(selected, 2048, 1, 10, errbuf) : nullptr;
         freealldevs(devices);
         if (!handle) {
             FreeLibrary(module);
-            setError(errbuf[0] ? errbuf : "pcap_open_live failed");
+            setError(!selected ? ("Requested Npcap interface not found: " + m_interface_name)
+                               : (errbuf[0] ? errbuf : "pcap_open_live failed"));
             m_running = false;
             return;
         }
@@ -243,8 +297,8 @@ private:
 
 static const std::vector<Variant>& variants() {
     static const std::vector<Variant> v = {
-        {0, "gx4816-slink-48k", "Observed GX4816/SLink shape: 0x04EE, 00 0A 04 EA 00, stream 0x02, 48k packets/s."},
-        {1, "gx4816-slink-96k", "Same GX4816 header, but free-running at 96k packets/s.", 0x04ee, 0x00, 0x0a, 0x04, 0xea, 0x00, 0x02, 1276, 96000.0},
+        {0, "gx4816-slink-48k", "Reference GX4816/SLink shape from captures: 0x04EE, 00 0A 04 EA 00, stream 0x02, 48k packets/s."},
+        {1, "gx4816-slink-96k", "Reference GX4816 header, but free-running at 96k packets/s.", 0x04ee, 0x00, 0x0a, 0x04, 0xea, 0x00, 0x02, 1276, 96000.0},
         {2, "avantis-header-gx-mac", "Console-style 00 00 04 EA 00 header, but with GX4816 source MAC.", 0x04ee, 0x00, 0x00, 0x04, 0xea, 0x00, 0x02, 1276, 48000.0},
         {3, "gx4816-stream01", "GX4816 header with stream type 0x01 instead of 0x02.", 0x04ee, 0x00, 0x0a, 0x04, 0xea, 0x00, 0x01, 1276, 48000.0},
         {4, "gx4816-zero-prefix", "GX4816 MAC and stream 0x02, but bytes 14-18 zeroed.", 0x04ee, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 1276, 48000.0},
@@ -266,6 +320,7 @@ static void usage() {
         << "  --variant N        Run one variant\n"
         << "  --seconds N        Seconds per streaming variant, default 4\n"
         << "  --pause-ms N       Pause between variants, default 1000\n"
+        << "  --interfaces       Print Npcap adapter names/descriptions\n"
         << "  --list             Print known variants\n";
 }
 
@@ -309,6 +364,8 @@ static bool parse_args(int argc, char** argv, Options& o) {
             o.all = true;
         } else if (a == "--send") {
             o.send = true;
+        } else if (a == "--interfaces") {
+            o.list_interfaces = true;
         } else if (a == "--list") {
             list_variants();
             return false;
@@ -407,6 +464,9 @@ int main(int argc, char** argv) {
             list_variants();
             return 0;
         }
+        if (arg == "--interfaces") {
+            return list_interfaces() ? 0 : 1;
+        }
         if (arg == "--help" || arg == "-h" || arg == "/?") {
             usage();
             return 0;
@@ -431,14 +491,13 @@ int main(int argc, char** argv) {
         selected.push_back(*it);
     }
 
-    std::cout << "Stagebox identity probe plan:\n";
-    list_variants();
-    std::cout << "\nSelected:";
-    for (const auto& v : selected)
-        std::cout << " " << v.id;
-    std::cout << "\n";
-
     if (!options.send) {
+        std::cout << "Stagebox identity probe plan:\n";
+        list_variants();
+        std::cout << "\nSelected:";
+        for (const auto& v : selected)
+            std::cout << " " << v.id;
+        std::cout << "\n";
         std::cout << "\nDry run only. Add --send and --interface to transmit.\n";
         return 0;
     }
@@ -448,6 +507,13 @@ int main(int argc, char** argv) {
         std::cerr << "TX open failed: " << sender.lastError() << "\n";
         return 1;
     }
+
+    std::cout << "Stagebox identity probe plan:\n";
+    list_variants();
+    std::cout << "\nSelected:";
+    for (const auto& v : selected)
+        std::cout << " " << v.id;
+    std::cout << "\n";
 
     for (size_t i = 0; i < selected.size(); ++i) {
         ConsoleResponseMonitor monitor(options.interface_name);

@@ -55,6 +55,7 @@ For controlled stagebox identity probing:
 
 ```powershell
 .\build\Release\GigaAceIdentify.exe --list
+.\build\Release\GigaAceIdentify.exe --interfaces
 .\build\Release\GigaAceIdentify.exe --interface "\Device\NPF_{YOUR-ADAPTER-GUID}" --send --variant 0 --seconds 10
 ```
 
