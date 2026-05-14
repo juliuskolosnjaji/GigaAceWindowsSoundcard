@@ -60,6 +60,15 @@ static std::string str_lower(std::string s) {
 
 static constexpr uint8_t kStreamAnnounce = 0xF0; // first contact
 static constexpr uint8_t kStreamHeart    = 0xF1; // already connected
+static constexpr uint8_t kKnownAvantisMac[6] = {0x00, 0x04, 0xc4, 0x08, 0xc8, 0x54};
+
+static bool mac_eq(const uint8_t* a, const uint8_t* b) {
+    return a && b && std::memcmp(a, b, 6) == 0;
+}
+
+static bool is_ah_oui(const uint8_t* mac) {
+    return mac && mac[0] == 0x00 && mac[1] == 0x04 && mac[2] == 0xc4;
+}
 
 // ---------------------------------------------------------------------------
 // AvantisHandshake
@@ -86,11 +95,30 @@ void AvantisHandshake::stop() {
 }
 
 void AvantisHandshake::notifyAudioFrame(const uint8_t* frame_bytes, size_t frame_len) {
-    if (!frame_bytes || frame_len < 12) return;
-    // bytes 6-11 = src_mac of sender (the Avantis console)
+    if (!frame_bytes || frame_len < 24) return;
+
+    const uint16_t ethertype = (uint16_t)(((uint16_t)frame_bytes[12] << 8) | frame_bytes[13]);
+    if (ethertype != 0x04ee)
+        return;
+
+    const uint8_t* src = frame_bytes + 6;
+    const bool known_avantis = mac_eq(src, kKnownAvantisMac);
+    const bool console_header =
+        frame_bytes[14] == 0x00 &&
+        frame_bytes[15] == 0x00 &&
+        frame_bytes[16] == 0x04 &&
+        frame_bytes[17] == 0xea &&
+        frame_bytes[18] == 0x00;
+    const bool local_or_stagebox = mac_eq(src, m_cfg.local_mac);
+
+    // Count only plausible console-origin frames. This avoids marking the link
+    // connected just because our own GX4816-style TX stream is visible.
+    if (!known_avantis && !(is_ah_oui(src) && console_header && !local_or_stagebox))
+        return;
+
     std::lock_guard<std::mutex> lk(m_audio_mutex);
     if (!m_audio_seen)
-        std::memcpy(m_console_mac, frame_bytes + 6, 6);
+        std::memcpy(m_console_mac, src, 6);
     m_audio_seen   = true;
     m_last_audio_tp = std::chrono::steady_clock::now();
 }

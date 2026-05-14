@@ -23,6 +23,16 @@ The tool is deliberately conservative. It sends a small set of named variants
 instead of random fuzzing. Each variant is printed before it is sent so the
 console state and packet capture can be matched to the exact test.
 
+While each variant is running, the tool also listens on the same adapter for
+console-origin frames. A useful result looks like this:
+
+```text
+Console response detected: 12345 frames from 00:04:C4:08:C8:54
+```
+
+If the tool prints `No console response detected`, the console either did not
+react to that identity pattern or the selected adapter/capture path is wrong.
+
 ## Variants
 
 List the available probe variants:
@@ -61,7 +71,8 @@ Current variants:
    `Send to console`.
 4. Run one variant for a fixed duration.
 5. Note exactly what the console shows during that variant.
-6. Save the packet capture with the variant number in the filename.
+6. Note whether `GigaAceIdentify.exe` prints `Console response detected`.
+7. Save the packet capture with the variant number in the filename.
 
 Start with variant `0`:
 
@@ -90,7 +101,8 @@ For each test, write down:
 - adapter/interface used on the PC
 - exact `GigaAceIdentify` command
 - whether the console shows a stagebox/device
-- whether the console begins sending frames back
+- whether `GigaAceIdentify.exe` detected console response frames
+- console response MAC address, if printed
 - whether any audio meters move
 - packet capture filename
 
