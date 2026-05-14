@@ -209,7 +209,9 @@ public:
                 std::cout << "  " << line << "\n";
         }
 
-        print_tone_candidates();
+        print_tone_candidates("all GigaACE-like frames", stats, audio_frames_scanned);
+        for (const auto& item : stream_stats)
+            print_tone_candidates(item.first, item.second.stats, item.second.frames);
     }
 
 private:
@@ -276,15 +278,23 @@ private:
         std::string sig = hex16(et) + " " + src + " " + hex_bytes(b.data() + 14, std::min<size_t>(12, b.size() - 14));
         header_counts[sig]++;
 
-        if (audio_frames_scanned >= opt.max_audio_frames)
-            return;
+        if (audio_frames_scanned < opt.max_audio_frames) {
+            scan_tone(stats, b, audio_frames_scanned);
+            ++audio_frames_scanned;
+        }
 
-        scan_tone(b);
-        ++audio_frames_scanned;
+        std::string stream_key = hex16(et) + " " + src;
+        StreamToneStats& stream = stream_stats[stream_key];
+        if (stream.stats.empty())
+            stream.stats.resize(stats.size());
+        if (stream.frames < opt.max_audio_frames) {
+            scan_tone(stream.stats, b, stream.frames);
+            ++stream.frames;
+        }
     }
 
-    void scan_tone(const std::vector<uint8_t>& b) {
-        double phase = 2.0 * 3.14159265358979323846 * opt.tone_hz * (double)audio_frames_scanned / opt.sample_rate;
+    void scan_tone(std::vector<ToneStat>& target_stats, const std::vector<uint8_t>& b, uint64_t frame_index) {
+        double phase = 2.0 * 3.14159265358979323846 * opt.tone_hz * (double)frame_index / opt.sample_rate;
         double s = std::sin(phase);
         double c = std::cos(phase);
         int scan_count = opt.byte_scan ? (opt.slots * 3) : opt.slots;
@@ -292,7 +302,7 @@ private:
             int off = 24 + (opt.byte_scan ? i : i * 3);
             if (off + 3 > (int)b.size()) break;
             for (int mode = 0; mode < 5; ++mode) {
-                ToneStat& st = stats[(size_t)i * 5 + mode];
+                ToneStat& st = target_stats[(size_t)i * 5 + mode];
                 double v = decode_sample_mode(b.data() + off, mode);
                 st.n++;
                 st.sum += v;
@@ -313,15 +323,15 @@ private:
             std::cout << "  " << std::setw(8) << rows[i].second << "  " << rows[i].first << "\n";
     }
 
-    void print_tone_candidates() {
-        if (!audio_frames_scanned) return;
+    void print_tone_candidates(const std::string& title, const std::vector<ToneStat>& source_stats, uint64_t frames_scanned) {
+        if (!frames_scanned) return;
 
         std::vector<Candidate> candidates;
         int scan_count = opt.byte_scan ? (opt.slots * 3) : opt.slots;
         for (int i = 0; i < scan_count; ++i) {
-            int off = 24 + (opt.byte_scan ? i : i * 3);
+                int off = 24 + (opt.byte_scan ? i : i * 3);
             for (int mode = 0; mode < 5; ++mode) {
-                const ToneStat& st = stats[(size_t)i * 5 + mode];
+                const ToneStat& st = source_stats[(size_t)i * 5 + mode];
                 if (st.n < 16) continue;
                 double mean = st.sum / (double)st.n;
                 double power = std::max(0.0, st.sum2 / (double)st.n - mean * mean);
@@ -338,8 +348,8 @@ private:
             return a.rms > b.rms;
         });
 
-        std::cout << "\nTone candidates near " << opt.tone_hz << " Hz"
-                  << " (scanned " << audio_frames_scanned << " frames at " << opt.sample_rate << " Hz):\n";
+        std::cout << "\nTone candidates near " << opt.tone_hz << " Hz - " << title
+                  << " (scanned " << frames_scanned << " frames at " << opt.sample_rate << " Hz):\n";
         std::cout << "  rank  slot/byte  offset  mode       score    rms       peak\n";
         for (int i = 0; i < (int)candidates.size() && i < opt.top; ++i) {
             const auto& c = candidates[(size_t)i];
@@ -365,6 +375,11 @@ private:
     std::map<std::string, uint64_t> header_counts;
     std::vector<std::string> first_frames;
     std::vector<ToneStat> stats;
+    struct StreamToneStats {
+        std::vector<ToneStat> stats;
+        uint64_t frames = 0;
+    };
+    std::map<std::string, StreamToneStats> stream_stats;
 };
 
 static void usage() {

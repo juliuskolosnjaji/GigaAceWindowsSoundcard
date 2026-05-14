@@ -47,6 +47,11 @@ add_executable(GigaAceAnalyze
     src/tools/gigaace_analyze.cpp
 )
 
+add_executable(GigaAceIdentify
+    src/tools/gigaace_identify.cpp
+    src/core/pcap_tx.cpp
+)
+
 add_executable(GigaAceSetup WIN32
     src/tools/gigaace_setup.cpp
 )
@@ -103,6 +108,17 @@ target_compile_definitions(GigaAceReplay PRIVATE
 target_link_libraries(GigaAceReplay PRIVATE winmm)
 
 target_compile_definitions(GigaAceAnalyze PRIVATE
+    UNICODE
+    _UNICODE
+    NOMINMAX
+    WIN32_LEAN_AND_MEAN
+)
+
+target_include_directories(GigaAceIdentify PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+)
+
+target_compile_definitions(GigaAceIdentify PRIVATE
     UNICODE
     _UNICODE
     NOMINMAX

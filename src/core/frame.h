@@ -85,6 +85,7 @@ typedef struct {
     const char* shared_memory_name;
     int shared_memory_frames;
     int tx_probe_enabled;
+    int tx_stagebox_advertise_enabled;
     int tx_probe_tone_enabled;
     GigaACETxSource tx_probe_source;
     int tx_probe_channel;

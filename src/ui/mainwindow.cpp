@@ -57,6 +57,9 @@ MainWindow::MainWindow(QWidget* parent)
     m_channel_combo->setCurrentIndex(m_channel_combo->findData(64));
     m_channel_combo->setMinimumWidth(110);
 
+    m_stagebox_advertise_check = new QCheckBox("Advertise GX4816");
+    m_stagebox_advertise_check->setToolTip("Experimental: identify as a GX4816/SLink stagebox by sending a silent GX4816-style stream. This is separate from audio test TX.");
+
     m_tx_probe_check = new QCheckBox("Send to console");
     m_tx_probe_check->setToolTip("Experimental: transmit synchronized test frames back to the selected GigaACE interface. Leave this off for receive-only ASIO use.");
     m_tx_tone_check = new QCheckBox("TX test tone CH 01");
@@ -123,6 +126,13 @@ MainWindow::MainWindow(QWidget* parent)
         m_capture_analyzer_window->show();
         m_capture_analyzer_window->raise();
         m_capture_analyzer_window->activateWindow();
+    });
+    connect(m_stagebox_advertise_check, &QCheckBox::toggled, [this](bool checked) {
+        if (checked) {
+            m_tx_settings.packet_format = GIGAACE_TX_PACKET_GX4816_SLINK;
+            if (m_tx_debug_window)
+                m_tx_debug_window->setSettings(m_tx_settings);
+        }
     });
     connect(m_tx_probe_check, &QCheckBox::toggled, [this](bool checked) {
         m_tx_tone_check->setEnabled(checked);
@@ -210,6 +220,7 @@ void MainWindow::setupUI() {
     controls->addWidget(m_monitor_btn, 1, 3);
     controls->addWidget(m_stop_btn, 1, 4);
     controls->addWidget(m_diagnostics_btn, 1, 5);
+    controls->addWidget(m_stagebox_advertise_check, 2, 0);
     controls->addWidget(m_tx_debug_btn, 2, 3);
     controls->addWidget(m_capture_analyzer_btn, 2, 4, 1, 2);
     controls->addWidget(m_tx_probe_check, 2, 1);
@@ -356,8 +367,10 @@ void MainWindow::onStartClicked() {
     config.shared_memory_name = "Local\\GigaACEVirtualDevice";
     config.shared_memory_frames = 192000;
     TxDebugSettings tx = currentTxSettings();
-    config.tx_probe_enabled = tx.enabled ? 1 : 0;
-    config.tx_probe_source = static_cast<GigaACETxSource>(tx.source);
+    const bool stagebox_advertise = m_stagebox_advertise_check && m_stagebox_advertise_check->isChecked();
+    config.tx_stagebox_advertise_enabled = stagebox_advertise ? 1 : 0;
+    config.tx_probe_enabled = (tx.enabled || stagebox_advertise) ? 1 : 0;
+    config.tx_probe_source = tx.enabled ? static_cast<GigaACETxSource>(tx.source) : GIGAACE_TX_SOURCE_SILENCE;
     config.tx_probe_tone_enabled = (tx.enabled && tx.source == GIGAACE_TX_SOURCE_TONE) ? 1 : 0;
     config.tx_probe_channel = tx.channel;
     config.tx_probe_gain = (float)tx.gain;
@@ -365,7 +378,9 @@ void MainWindow::onStartClicked() {
     config.tx_probe_file_loop = tx.loop_file ? 1 : 0;
     config.tx_probe_encoding = static_cast<GigaACETxEncoding>(tx.encoding);
     config.tx_probe_layout = static_cast<GigaACETxLayout>(tx.layout);
-    config.tx_probe_packet_format = static_cast<GigaACETxPacketFormat>(tx.packet_format);
+    config.tx_probe_packet_format = stagebox_advertise
+        ? GIGAACE_TX_PACKET_GX4816_SLINK
+        : static_cast<GigaACETxPacketFormat>(tx.packet_format);
     std::strncpy(config.tx_probe_file_path, tx.file_path.toUtf8().constData(),
                  sizeof(config.tx_probe_file_path) - 1);
     config.tx_probe_file_path[sizeof(config.tx_probe_file_path) - 1] = '\0';
@@ -374,6 +389,7 @@ void MainWindow::onStartClicked() {
             << "channels=" << config.channels
             << "interface=" << iface
             << "send_to_console=" << config.tx_probe_enabled
+            << "stagebox_advertise=" << config.tx_stagebox_advertise_enabled
             << "tx_source=" << config.tx_probe_source
             << "tx_channel=" << config.tx_probe_channel + 1
             << "tx_encoding=" << config.tx_probe_encoding

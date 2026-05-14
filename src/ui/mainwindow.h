@@ -60,6 +60,7 @@ private:
 
     QComboBox* m_interface_combo;
     QComboBox* m_channel_combo;
+    QCheckBox* m_stagebox_advertise_check;
     QCheckBox* m_tx_probe_check;
     QCheckBox* m_tx_tone_check;
     QPushButton* m_start_btn;

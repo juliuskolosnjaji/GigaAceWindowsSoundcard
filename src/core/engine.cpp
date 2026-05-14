@@ -44,7 +44,7 @@ GigaACEEngine::GigaACEEngine(const GigaACEConfig& config)
     } else {
         qInfo() << "[Engine] Pcap source interface:" << config.interface_name;
         m_pcap_source = std::make_unique<PcapFrameSource>(config.interface_name, 0x04ee);
-        if (config.tx_probe_enabled) {
+        if (config.tx_probe_enabled || config.tx_stagebox_advertise_enabled) {
             m_tx_sender = std::make_unique<PcapPacketSender>(config.interface_name);
             loadTxWavFile();
         }
@@ -293,6 +293,8 @@ void GigaACEEngine::txLoop() {
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
     qInfo() << "[Engine] TX stream thread started (RX-clocked)"
             << "packet_format=" << m_config.tx_probe_packet_format;
+    if (m_config.tx_stagebox_advertise_enabled && m_config.tx_probe_source == GIGAACE_TX_SOURCE_SILENCE)
+        qInfo() << "[Engine] Stagebox advertise enabled: sending silent GX4816 stream";
 
     // GX4816/SLink sends roughly one stagebox TX frame per incoming console frame.
     // GigaACE card mode sends 0x00E1 at 96 k packets/s while the console side is
@@ -301,12 +303,13 @@ void GigaACEEngine::txLoop() {
     static constexpr size_t kMaxBatch  = 192;   // max frames per sendQueue call
     static constexpr size_t kCatchupCap = 768;  // never send more than this per wakeup
     const bool gigaace_card_mode = m_config.tx_probe_packet_format == GIGAACE_TX_PACKET_GIGAACE_CARD;
+    const bool free_run_tx = gigaace_card_mode || m_config.tx_stagebox_advertise_enabled;
     const uint64_t tx_frames_per_rx = gigaace_card_mode ? 2 : 1;
     const double rate = gigaace_card_mode ? 96000.0 : 48000.0;
 
     uint64_t tx_sent = 0;  // local shadow of how many we have sent
 
-    if (gigaace_card_mode) {
+    if (free_run_tx) {
         while (m_tx_running.load()) {
             std::vector<std::vector<uint8_t>> batch;
             batch.reserve(kMaxBatch);

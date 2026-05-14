@@ -38,6 +38,7 @@ $files = @(
     "GigaAceASIO.dll",
     "GigaAceReplay.exe",
     "GigaAceAnalyze.exe",
+    "GigaAceIdentify.exe",
     "GigaAceSetup.exe",
     "Qt6Core.dll",
     "Qt6Gui.dll",
@@ -75,6 +76,10 @@ GigaAceReplay.exe --input capture.pcapng --loop --channels 64
 
 For protocol analysis:
 GigaAceAnalyze.exe --input capture.pcapng --tone 440 --slots 128
+
+For controlled stagebox identification tests:
+GigaAceIdentify.exe --list
+GigaAceIdentify.exe --interface "\Device\NPF_{...}" --send --variant 0 --seconds 10
 "@ | Set-Content -Path (Join-Path $PackageDir "README.txt") -Encoding ASCII
 
 if (Test-Path $ZipPath) {
