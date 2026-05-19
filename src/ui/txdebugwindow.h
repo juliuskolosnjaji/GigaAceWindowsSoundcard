@@ -16,11 +16,11 @@ struct TxDebugSettings {
     int source = 0;
     int channel = 0;
     double gain = 0.03;
-    double frequency = 1000.0;
+    double frequency = 440.0;
     QString file_path;
     bool loop_file = true;
     int encoding = 0;
-    int layout = 0;
+    int layout = 4;
     int packet_format = 1;
 };
 

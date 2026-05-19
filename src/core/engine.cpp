@@ -437,6 +437,8 @@ std::vector<uint8_t> GigaACEEngine::makeTxProbeFrame() {
         slot_count = std::max(slot_count, (size_t)channels + 1);
     else if (m_config.tx_probe_layout == GIGAACE_TX_LAYOUT_GX4816_LINEAR_48)
         slot_count = 48;
+    else if (m_config.tx_probe_layout == GIGAACE_TX_LAYOUT_GIGAACE_CARD_PAIRED)
+        slot_count = std::max(slot_count, target_slot + 3);
     size_t max_slots = (packet.size() > GIGAACE_AUDIO_BASE_OFFSET)
         ? (packet.size() - GIGAACE_AUDIO_BASE_OFFSET) / GIGAACE_BYTES_PER_SAMPLE
         : 0;
@@ -450,13 +452,21 @@ std::vector<uint8_t> GigaACEEngine::makeTxProbeFrame() {
         packet[off + 2] = sync;
     }
 
+    const bool paired_card_layout = m_config.tx_probe_layout == GIGAACE_TX_LAYOUT_GIGAACE_CARD_PAIRED;
+    const size_t mirror_slot = paired_card_layout ? target_slot + 2 : target_slot;
+    float active_sample = 0.0f;
+    if (m_config.tx_probe_source != GIGAACE_TX_SOURCE_SILENCE) {
+        float gain = std::clamp(m_config.tx_probe_gain, 0.0f, 0.25f);
+        active_sample = gain * nextTxSample();
+    }
+
     for (size_t slot = 0; slot < slot_count; ++slot) {
         if (m_config.tx_probe_layout == GIGAACE_TX_LAYOUT_BANKED_8_WITH_SYNC && slot == 0)
             continue;
         float sample = 0.0f;
-        if (m_config.tx_probe_source != GIGAACE_TX_SOURCE_SILENCE && slot == target_slot) {
-            float gain = std::clamp(m_config.tx_probe_gain, 0.0f, 0.25f);
-            sample = gain * nextTxSample();
+        if (m_config.tx_probe_source != GIGAACE_TX_SOURCE_SILENCE) {
+            if (slot == target_slot || (paired_card_layout && slot == mirror_slot))
+                sample = active_sample;
         }
 
         uint8_t packed[3];
@@ -506,6 +516,8 @@ static size_t txSlotForChannel(int channel, GigaACETxLayout layout) {
     channel = std::max(0, channel);
     if (layout == GIGAACE_TX_LAYOUT_GX4816_LINEAR_48)
         return (size_t)std::min(channel, 47);
+    if (layout == GIGAACE_TX_LAYOUT_GIGAACE_CARD_PAIRED)
+        return (size_t)channel;
     if (layout == GIGAACE_TX_LAYOUT_RAW_SLOT)
         return (size_t)channel;
     if (layout == GIGAACE_TX_LAYOUT_BANKED_8_WITH_SYNC) {

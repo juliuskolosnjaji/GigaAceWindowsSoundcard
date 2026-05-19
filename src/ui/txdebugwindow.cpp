@@ -49,7 +49,7 @@ TxDebugWindow::TxDebugWindow(QWidget* parent)
     m_frequency_spin->setRange(20.0, 20000.0);
     m_frequency_spin->setDecimals(1);
     m_frequency_spin->setSingleStep(10.0);
-    m_frequency_spin->setValue(1000.0);
+    m_frequency_spin->setValue(440.0);
     m_frequency_spin->setSuffix(" Hz");
     form->addRow("Tone frequency", m_frequency_spin);
 
@@ -59,6 +59,7 @@ TxDebugWindow::TxDebugWindow(QWidget* parent)
     form->addRow("Packet format", m_packet_format_combo);
 
     m_layout_combo = new QComboBox();
+    m_layout_combo->addItem("GigaACE card paired slots", 4);
     m_layout_combo->addItem("Linear slots", 0);
     m_layout_combo->addItem("GX4816 linear 48", 3);
     m_layout_combo->addItem("ACE banked 8 + sync", 1);
@@ -88,7 +89,7 @@ TxDebugWindow::TxDebugWindow(QWidget* parent)
     m_loop_check->setChecked(true);
     form->addRow("", m_loop_check);
 
-    m_note_label = new QLabel("Changes are used on the next Start/Restart Audio. GigaACE card mode matches the 0x00E1 capture: Big-endian 24-bit, 96k TX packets, channel 1 in slot 0.");
+    m_note_label = new QLabel("Changes are used on the next Start/Restart Audio. GigaACE card mode matches the 0x00E1 capture: Big-endian 24-bit, 96k TX packets, channel 1 mirrored to slots 1 and 3.");
     m_note_label->setWordWrap(true);
     m_note_label->setStyleSheet("color: #4b5563; font-size: 11px;");
     root->addWidget(m_note_label);
